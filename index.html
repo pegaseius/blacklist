@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>法学黑刊检测器</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+  }
+
+  h2 {
+    color: #333;
+    text-align: center;
+  }
+
+  .container {
+    max-width: 600px;
+    margin: auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  textarea {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: vertical;
+  }
+
+  button {
+    display: block;
+    width: 100%;
+    background-color: #4caf50;
+    color: white;
+    padding: 10px 0;
+    margin: 10px 0;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: #45a049;
+  }
+
+  .result {
+    margin-top: 20px;
+  }
+
+  .result div {
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+  }
+
+  .blacklisted {
+    color: red;
+    background-color: #ffebee;
+  }
+</style>
+</head>
+<body>
+<h2>华东政法大学法学黑刊文献检测器</h2>
+<div>
+  <label for="sourceInput">请输入文献信息（每个文献或期刊名称换行输入）：</label>
+  <textarea id="sourceInput" rows="10" cols="50" placeholder="在此输入文献或期刊名称，每行一个">刘某某.某某解纷之某某路向[J].法制博览,2024(01):52-54.
+李某某：《暂缓起诉视野下的某某问题研究》，载《法制与经济》2023年第32卷第12期，第65-73页。
+王某,张某某.“法法衔接”下某某制度的完善[J].西部学刊,2024(05):51-55.
+楚天法治</textarea>
+  <label>检测依据见华东政法大学2022年第3版负面期刊目录</label>
+  <button onclick="checkSources()">检测</button>
+</div>
+<div id="result"></div>
+
+<script>
+// 定义黑刊期刊列表
+const blacklist = [
+  { name: "办公室业务", organization: "中南出版传媒集团股份有限公司" },
+  { name: "才智", organization: "中国吉林高新技术人才市场" },
+  { name: "财经界（学术版）", organization: "国家信息中心" },
+  { name: "产业与科技论坛", organization: "河南省科学技术协会" },
+  { name: "楚天法治", organization: "湖北日报传媒集团" },
+  { name: "法制博览", organization: "共青团山西省委等" },
+  { name: "法制与经济", organization: "广西大学" },
+  { name: "法制与社会", organization: "云南省人民调解员协会" },
+  { name: "改革与开放", organization: "南京市发展和改革委员会等" },
+  { name: "海峡科技与产业", organization: "科技部海峡两岸科技交流中心" },
+  { name: "合作经济与科技", organization: "河北省供销合作总社" },
+  { name: "河北企业", organization: "河北省企业联合会" },
+  { name: "湖北农机化", organization: "湖北省农业机械工程研究设计院" },
+  { name: "环渤海经济瞭望", organization: "天津市信息中心" },
+  { name: "技术与市场", organization: "四川省科技信息研究所" },
+  { name: "佳木斯教育学院学报", organization: "佳木斯教育学院" },
+  { name: "剑南文学", organization: "中共绵阳市委宣传部" },
+  { name: "今传媒", organization: "今传媒杂志社" },
+  { name: "金田", organization: "广西玉林市文联" },
+  { name: "经济管理", organization: "科技部西南信息中心等" },
+  { name: "经济研究导刊", organization: "黑龙江省报刊出版中心" },
+  { name: "经济与社会发展研究", organization: "山西省太原市人民政府经济发展研究中心" },
+  { name: "经营管理者", organization: "四川省企业联合会" },
+  { name: "经营者", organization: "中国市场学会等" },
+  { name: "决策探索", organization: "河南省人民政府研究室" },
+  { name: "开封教育学院学报", organization: "河南省教育厅" },
+  { name: "科技财经", organization: "中国社会科学院民族研究所" },
+  { name: "科技经济市场", organization: "南昌市信息中心" },
+  { name: "理论观察", organization: "齐齐哈尔市社会科学界联合会" },
+  { name: "旅游纵览", organization: "中国野生动物保护协会等" },
+  { name: "纳税", organization: "云南出版传媒集团" },
+  { name: "企业改革与管理", organization: "首钢集团有限公司" },
+  { name: "企业科技与发展", organization: "广西科技情报研究所" },
+  { name: "企业文化", organization: "黑龙江省作协" },
+  { name: "青春岁月", organization: "共青团河北省委" },
+  { name: "全国流通经济", organization: "中华全国商业信息中心" },
+  { name: "商", organization: "科幻世界杂志社" },
+  { name: "商场现代化", organization: "中国科学技术信息研究所" },
+  { name: "商情", organization: "河北省消费时尚文化传播中心" },
+  { name: "时代金融", organization: "中国时代金融杂志社" },
+  { name: "市场周刊", organization: "江苏省惠隆资产管理有限公司" },
+  { name: "视听", organization: "广西人民广播电台等" },
+  { name: "太原城市职业技术学院学报", organization: "太原城市职业技术学院" },
+  { name: "投资与创业", organization: "中国生产力学会等" },
+  { name: "文化学刊", organization: "辽宁社会科学院" },
+  { name: "西部皮革", organization: "四川省皮革学会等" },
+  { name: "现代交际", organization: "吉林省社会科学院" },
+  { name: "现代经济信息", organization: "黑龙江省经济委员会" },
+  { name: "现代企业", organization: "陕西省企业管理协会" },
+  { name: "现代企业文化", organization: "中国工人报刊协会等" },
+  { name: "现代物业（上旬）", organization: "现代物业杂志社" },
+  { name: "现代物业（中旬）", organization: "云南省物业管理行业协会" },
+  { name: "现代营销", organization: "吉林省新闻出版局" },
+  { name: "消费导刊", organization: "中国轻工业联合会" },
+  { name: "新闻传播", organization: "黑龙江省新闻工作者协会等" },
+  { name: "新闻研究导刊", organization: "重庆日报报业集团" },
+  { name: "新西部", organization: "陕西省社会科学院" },
+  { name: "知识经济", organization: "重庆市科学技术协会" },
+  { name: "智富时代", organization: "广东省农垦集团公司" },
+  { name: "中国管理信息化", organization: "吉林省科学技术出版社" },
+  { name: "中国商界", organization: "《中国商报社》新闻出版总社" },
+  { name: "中国市场", organization: "中国物流采购联合会" },
+  { name: "中国水运（下半月）", organization: "交通部长江航务管理局" },
+  { name: "中小企业管理与科技（中旬刊）", organization: "河北省中小企业服务中心" },
+  { name: "祖国", organization: "中国经济传媒协会" },
+  { name: "南北桥", organization: "长春出版社" },
+  { name: "时代报告", organization: "河南省文学艺术界联合会" },
+  { name: "区域治理", organization: "山西社会科学报刊社" },
+  { name: "西部学刊", organization: "陕西新华出版传媒集团" },
+  { name: "中国集体经济", organization: "中华全国手工业合作总社" },
+  { name: "警戒线", organization: "吉林省舆林报刊发展公司" },
+  { name: "商业2.0", organization: "河南销售与市场杂志社有限公司" },
+  { name: "商业文化", organization: "中国商业文化研究会" },
+  { name: "当代会计", organization: "江西省报刊传媒有限责任公司" },
+  { name: "赢未来", organization: "家庭期刊集团有限公司" },
+  { name: "花溪", organization: "贵阳日报传媒集团" },
+  { name: "魅力中国", organization: "河南人民广播电台" },
+  { name: "活力", organization: "黑龙江日报报业集团" },
+  { name: "海外英语", organization: "安徽科学技术出版社" },
+  { name: "齐齐哈尔大学学报", organization: "齐齐哈尔大学" },
+  { name: "北京印刷学院学报", organization: "北京印刷学院" },
+  { name: "学习导引", organization: "解放军理工大学政治部" },
+  { name: "智库时代", organization: "山西社会科学报刊社" },
+  { name: "科技信息", organization: "山东省技术开发服务中心" },
+  { name: "科技经济市场", organization: "南昌市信息中心" },
+  { name: "商业故事", organization: "重庆新华书店集团" },
+  { name: "财富时代", organization: "四川西南商报报业传媒有限公司" },
+  { name: "黑龙江人力资源和社会保障", organization: "黑龙江人力资源和社会保障信息中心" },
+  { name: "中阿科技论坛", organization: "宁夏回族自治区对外科技交流中心" },
+  { name: "同行", organization: "安徽省残疾人联合会" },
+  { name: "黄河黄土黄种人", organization: "水利部黄河水利委员会" },
+  { name: "时代人物", organization: "陕西省人民出版社有限责任公司" },
+  { name: "江西电力职业技术学院学报", organization: "江西电力职业技术学院" },
+  { name: "中国多媒体与网络教学学报", organization: "清华大学" },
+  { name: "科学与生活", organization: "新疆维吾尔自治区科协" },
+  { name: "新一代：理论版", organization: "共青团甘肃省委" },
+  { name: "新丝路", organization: "陕西省社会发展研究会" },
+  { name: "神州", organization: "中国通俗文学研究会" },
+  { name: "进展：教学与科研", organization: "重庆西南信息有限公司" },
+  { name: "知识窗", organization: "中文天地出版传媒集团股份有限公司" },
+  { name: "理论与创新", organization: "当代商报社" },
+  { name: "电子工程学院学报", organization: "解放军电子工程学院" },
+  { name: "客联", organization: "广州市客属文化研究会等" },
+  { name: "智慧东方", organization: "深圳日报报业集团" },
+  { name: "中国科技信息", organization: "中国科技新闻学会" },
+  { name: "海外文摘", organization: "中国现代国际关系研究院" },
+  { name: "老字号品牌营销", organization: "石家庄日报社" }
+];
+
+function extractJournalName(text) {
+  const patterns = [
+    /\[J\]\.([^,]+),/, // 匹配 [J].xxx,
+    /载《([^》]+)》/, // 匹配 载《xxx》
+    /^《?([^》]+)》?$/ // 匹配直接输入的期刊名”
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[1].trim();
+  }
+
+  return text.trim();
+}
+
+
+function checkSources() {
+  const userInput = document.getElementById('sourceInput').value;
+  const sources = userInput.split('\n').map(s => s.trim());
+  const result = document.getElementById('result');
+  result.innerHTML = "";
+
+  sources.forEach(source => {
+    const journalName = extractJournalName(source);
+    if (journalName) {
+      const found = blacklist.find(item => item.name === journalName);
+      if (found) {
+        result.innerHTML += `<div class="blacklisted">警告：${source}来源于华政黑刊目录《${found.name}》，主办单位为${found.organization}。</div>`;
+      } else {
+        result.innerHTML += `<div>${source}不在黑刊列表中。</div>`;
+      }
+    } else {
+      result.innerHTML += `<div>未能识别的文献格式：《${source}》。</div>`;
+    }
+  });
+}
+</script>
+<div style="text-align:center;"><p>南京大学法学院Chollima制作</p></div>
+<div style="text-align:center;"><p>2024©Chollima 禁止用于营利目的</p></div>
+</body>
+</html>
